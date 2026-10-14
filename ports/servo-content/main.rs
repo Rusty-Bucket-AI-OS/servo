@@ -288,10 +288,19 @@ fn stdio(start: Option<&str>) {
     let (mut width, mut height) = (1280usize, 720usize);
     let mut sent: Vec<u8> = Vec::new();
     let _ = protocol::hello(&mut out, width as u16, height as u16);
+    // Servo drops a navigation that arrives before its first browsing context exists (it exists once the initial page has loaded), so
+    // navigation and input wait until then; a resize and a quit do not.
+    let (mut ready, mut deferred): (bool, VecDeque<Command>) = (false, VecDeque::new());
     loop {
         servo.spin_event_loop();
-        let pending: Vec<Command> = commands.lock().unwrap_or_else(|p| p.into_inner()).drain(..).collect();
+        ready |= delegate.loaded.get();
+        let mut pending: VecDeque<Command> = std::mem::take(&mut deferred);
+        pending.extend(commands.lock().unwrap_or_else(|p| p.into_inner()).drain(..));
         for command in pending {
+            if !ready && !matches!(command, Command::Resize(..) | Command::Quit) {
+                deferred.push_back(command);
+                continue;
+            }
             match command {
                 Command::Quit => return,
                 Command::Navigate(text) => match Url::parse(&text) {
