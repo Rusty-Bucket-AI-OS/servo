@@ -15,7 +15,7 @@ use crossbeam_channel::{Receiver, Sender, unbounded};
 use headers::{ContentType, HeaderMapExt, ReferrerPolicy as ReferrerPolicyHeader};
 use http::{HeaderMap, HeaderValue, StatusCode, header};
 use hyper_serde::Serde;
-use hyper_util::client::legacy::Error as HyperError;
+use std::error::Error as HyperError;
 use malloc_size_of::malloc_size_of_is_0;
 use malloc_size_of_derive::MallocSizeOf;
 use mime::Mime;
@@ -1327,7 +1327,7 @@ impl NetworkError {
         )
     }
 
-    pub fn from_hyper_error(error: &HyperError, certificate: Option<CertificateDer>) -> Self {
+    pub fn from_hyper_error(error: &dyn HyperError, certificate: Option<CertificateDer>) -> Self {
         let error_string = error.to_string();
         match certificate {
             Some(certificate) => NetworkError::SslValidation(error_string, certificate.to_vec()),

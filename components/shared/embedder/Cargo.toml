@@ -42,7 +42,7 @@ stylo = { workspace = true }
 stylo_traits = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
-webdriver = { workspace = true }
+webdriver = { workspace = true, default-features = false }
 webrender_api = { workspace = true }
 
 [lints]
