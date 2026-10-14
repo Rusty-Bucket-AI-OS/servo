@@ -19,9 +19,9 @@ use hyper::rt::Executor;
 use hyper_rustls::{HttpsConnector as HyperRustlsHttpsConnector, MaybeHttpsStream};
 use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::proxy::Tunnel;
-use hyper_util::client::legacy::connect::{
-    Connected, Connection, HttpConnector as HyperHttpConnector,
-};
+#[cfg(not(target_os = "wasi"))]
+use hyper_util::client::legacy::connect::HttpConnector as HyperHttpConnector;
+use hyper_util::client::legacy::connect::{Connected, Connection};
 use hyper_util::rt::{TokioIo, TokioTimer};
 use log::warn;
 use parking_lot::Mutex;
@@ -31,11 +31,18 @@ use rustls::crypto::{CryptoProvider, aws_lc_rs};
 use rustls::{CipherSuite, ClientConfig, NamedGroup, ProtocolVersion};
 use rustls_pki_types::{CertificateDer, ServerName, UnixTime};
 use servo_config::pref;
+#[cfg(not(target_os = "wasi"))]
 use tokio::net::TcpStream;
 use tower::Service;
 
 use crate::async_runtime::spawn_task;
 use crate::hosts::replace_host;
+
+/// The stream type under TLS: a `tokio` TCP socket, or an `rb_net` socket on WASI (which has no `tokio::net`).
+#[cfg(not(target_os = "wasi"))]
+pub(crate) type NetStream = TcpStream;
+#[cfg(target_os = "wasi")]
+pub(crate) type NetStream = crate::wasi_stream::WasiStream;
 
 pub const BUF_SIZE: usize = 32768;
 
@@ -44,10 +51,14 @@ pub const ALPN_H2: &str = "h2";
 
 #[derive(Clone)]
 pub struct ServoHttpConnector {
+    #[cfg(not(target_os = "wasi"))]
     inner: HyperHttpConnector,
+    #[cfg(target_os = "wasi")]
+    inner: crate::wasi_stream::WasiConnector,
 }
 
 impl ServoHttpConnector {
+    #[cfg(not(target_os = "wasi"))]
     fn new() -> ServoHttpConnector {
         let mut inner = HyperHttpConnector::new();
         inner.enforce_http(false);
@@ -55,13 +66,19 @@ impl ServoHttpConnector {
         inner.set_connect_timeout(Some(Duration::from_secs(pref!(network_connection_timeout))));
         ServoHttpConnector { inner }
     }
+
+    #[cfg(target_os = "wasi")]
+    fn new() -> ServoHttpConnector {
+        let timeout = Duration::from_secs(pref!(network_connection_timeout));
+        ServoHttpConnector { inner: crate::wasi_stream::WasiConnector::new(timeout) }
+    }
 }
 
 impl Service<Destination> for ServoHttpConnector {
-    type Response = TokioIo<TcpStream>;
+    type Response = TokioIo<NetStream>;
     type Error = ConnectionError;
     type Future =
-        std::pin::Pin<Box<dyn Future<Output = Result<TokioIo<TcpStream>, ConnectionError>> + Send>>;
+        std::pin::Pin<Box<dyn Future<Output = Result<TokioIo<NetStream>, ConnectionError>> + Send>>;
 
     fn call(&mut self, dest: Destination) -> Self::Future {
         // Perform host replacement when making the actual TCP connection.
@@ -623,10 +640,10 @@ impl ProxyConnector {
 
 // Just forward everything to the inner type except that we modify the errors returned.
 impl Service<Destination> for ProxyConnector {
-    type Response = TokioIo<TcpStream>;
+    type Response = TokioIo<NetStream>;
     type Error = ConnectionError;
     type Future =
-        std::pin::Pin<Box<dyn Future<Output = Result<TokioIo<TcpStream>, ConnectionError>> + Send>>;
+        std::pin::Pin<Box<dyn Future<Output = Result<TokioIo<NetStream>, ConnectionError>> + Send>>;
 
     fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
         self.client

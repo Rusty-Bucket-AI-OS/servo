@@ -1,0 +1,33 @@
+diff -ruN at/orig/src/tokio.rs at/new/src/tokio.rs
+--- a/src/tokio.rs
++++ b/src/tokio.rs
+@@ -389,7 +389,14 @@
+     let domain = domain(&request)?;
+     let port = port(&request)?;
+ 
++    // tokio has no TCP connect on WASI: Servo's WebSocket loader connects through rb_net and uses `client_async_*`.
++    #[cfg(not(target_os = "wasi"))]
+     let try_socket = TcpStream::connect((domain.as_str(), port)).await;
++    #[cfg(target_os = "wasi")]
++    let try_socket: Result<TcpStream, std::io::Error> = {
++        let _ = (&domain, port);
++        Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "no TCP sockets on WASI"))
++    };
+     let socket = try_socket.map_err(Error::Io)?;
+     client_async_tls_with_connector_and_config(request, socket, None, config).await
+ }
+@@ -437,7 +444,14 @@
+     let domain = domain(&request)?;
+     let port = port(&request)?;
+ 
++    // tokio has no TCP connect on WASI: Servo's WebSocket loader connects through rb_net and uses `client_async_*`.
++    #[cfg(not(target_os = "wasi"))]
+     let try_socket = TcpStream::connect((domain.as_str(), port)).await;
++    #[cfg(target_os = "wasi")]
++    let try_socket: Result<TcpStream, std::io::Error> = {
++        let _ = (&domain, port);
++        Err(std::io::Error::new(std::io::ErrorKind::Unsupported, "no TCP sockets on WASI"))
++    };
+     let socket = try_socket.map_err(Error::Io)?;
+     client_async_tls_with_connector_and_config(request, socket, connector, config).await
+ }

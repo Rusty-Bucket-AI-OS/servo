@@ -1,0 +1,12 @@
+diff -ruN im/orig/src/lib.rs im/new/src/lib.rs
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -633,6 +633,8 @@
+     }
+ }
+ 
++// Stdin is read through `&Stdin`, which only exists where there is a platform stdin lock (unix, windows).
++#[cfg(any(target_family="unix", target_family="windows"))]
+ impl Imsz for std::io::Stdin {
+     #[inline]
+     fn imsz(self) -> ImResult<ImInfo> {

@@ -1,0 +1,140 @@
+diff -ruN a/Cargo.toml b/Cargo.toml
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -56,7 +56,6 @@
+ client-legacy = [
+     "client",
+     "tokio/net",
+-    "dep:socket2",
+     "tokio/sync",
+     "dep:libc",
+     "dep:futures-util",
+@@ -205,10 +204,6 @@
+ [dependencies.pin-project-lite]
+ version = "0.2.4"
+ 
+-[dependencies.socket2]
+-version = "0.6"
+-features = ["all"]
+-optional = true
+ 
+ [dependencies.tokio]
+ version = "1.13"
+@@ -285,3 +280,7 @@
+ [target."cfg(windows)".dependencies.windows-registry]
+ version = ">=0.3, <0.7"
+ optional = true
++
++[target.'cfg(not(target_os = "wasi"))'.dependencies.socket2]
++version = "0.6"
++features = ["all"]
+diff -ruN a/src/client/legacy/connect/http_wasi.rs b/src/client/legacy/connect/http_wasi.rs
+--- a/src/client/legacy/connect/http_wasi.rs	1970-01-01 00:00:00.000000000 +0000
++++ b/src/client/legacy/connect/http_wasi.rs
+@@ -0,0 +1,92 @@
++//! A stand-in for the TCP connector on WASI, where `socket2` (which the real one is built on) has no backend. It has the
++//! same names so crates that only mention it (hyper-rustls's builder) compile; connecting always fails. Servo's network
++//! code connects through the `rb_net` imports instead.
++
++#![allow(missing_docs)]
++
++use std::future::{self, Ready};
++use std::io;
++use std::marker::PhantomData;
++use std::net::SocketAddr;
++use std::task::{Context, Poll};
++
++use http::Uri;
++use tokio::net::TcpStream;
++use tower_service::Service;
++
++use super::dns::GaiResolver;
++use super::{Connected, Connection};
++use crate::rt::TokioIo;
++
++#[derive(Clone, Debug)]
++pub struct HttpConnector<R = GaiResolver> {
++    resolver: PhantomData<R>,
++}
++
++#[derive(Clone, Debug)]
++pub struct HttpInfo {
++    remote_addr: SocketAddr,
++    local_addr: SocketAddr,
++}
++
++impl HttpInfo {
++    pub fn remote_addr(&self) -> SocketAddr {
++        self.remote_addr
++    }
++
++    pub fn local_addr(&self) -> SocketAddr {
++        self.local_addr
++    }
++}
++
++impl HttpConnector {
++    pub fn new() -> HttpConnector {
++        HttpConnector { resolver: PhantomData }
++    }
++}
++
++impl Default for HttpConnector {
++    fn default() -> Self {
++        Self::new()
++    }
++}
++
++impl<R> HttpConnector<R> {
++    pub fn new_with_resolver(_resolver: R) -> HttpConnector<R> {
++        HttpConnector { resolver: PhantomData }
++    }
++
++    pub fn enforce_http(&mut self, _is_enforced: bool) {}
++
++    pub fn set_keepalive(&mut self, _dur: Option<std::time::Duration>) {}
++}
++
++impl<R> Service<Uri> for HttpConnector<R> {
++    type Response = TokioIo<TcpStream>;
++    type Error = io::Error;
++    type Future = Ready<Result<Self::Response, Self::Error>>;
++
++    fn poll_ready(&mut self, _cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
++        Poll::Ready(Ok(()))
++    }
++
++    fn call(&mut self, _dst: Uri) -> Self::Future {
++        future::ready(Err(io::Error::new(io::ErrorKind::Unsupported, "TCP sockets are not available on WASI; use rb_net")))
++    }
++}
++
++impl Connection for TcpStream {
++    fn connected(&self) -> Connected {
++        Connected::new()
++    }
++}
++
++// So that `TokioIo<S>` works for any stream with a `Connection` (hyper-rustls and Servo's connector wrap their own).
++impl<T> Connection for TokioIo<T>
++where
++    T: Connection,
++{
++    fn connected(&self) -> Connected {
++        self.inner().connected()
++    }
++}
+diff -ruN a/src/client/legacy/connect/mod.rs b/src/client/legacy/connect/mod.rs
+--- a/src/client/legacy/connect/mod.rs
++++ b/src/client/legacy/connect/mod.rs
+@@ -78,6 +78,10 @@
+ #[cfg(feature = "tokio")]
+ pub mod dns;
+ #[cfg(feature = "tokio")]
++#[cfg(not(target_os = "wasi"))]
++mod http;
++#[cfg(target_os = "wasi")]
++#[path = "http_wasi.rs"]
+ mod http;
+ 
+ pub mod proxy;

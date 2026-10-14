@@ -459,6 +459,12 @@ codegen-units = 1
 wr_glyph_rasterizer = { path = "third_party/wr_glyph_rasterizer" }
 # Spike P7-2: glow's OpenGL (not WebGL) backend on WASI, where the loader is the software GL's `get_proc_address`.
 glow = { path = "third_party/glow" }
+# P7-5: hyper-util without socket2 and its HttpConnector on WASI (servo-net connects through `rb_net` there).
+hyper-util = { path = "third_party/hyper-util" }
+# ... and async-tungstenite without tokio's TCP connect.
+async-tungstenite = { path = "third_party/async-tungstenite" }
+# ... and imsz, whose Stdin impl needs a unix or windows one.
+imsz = { path = "third_party/imsz" }
 # markup5ever = { path = "../html5ever/markup5ever" }
 # tendril = { path = "../html5ever/tendril" }
 # web_atoms = { path = "../html5ever/web_atoms" }

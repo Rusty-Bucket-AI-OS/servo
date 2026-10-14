@@ -28,6 +28,7 @@ use net_traits::{CookieSource, MessageData, WebSocketDomAction, WebSocketNetwork
 use profile_traits::generic_callback::GenericCallback as ProfileGenericCallback;
 use servo_base::generic_channel::CallbackSetter;
 use servo_url::ServoUrl;
+#[cfg(not(target_os = "wasi"))]
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
@@ -302,6 +303,7 @@ async fn run_ws_loop(
 /// Initiate a new async WS connection. Returns an error if the connection fails
 /// for any reason, or if the response isn't valid. Otherwise, the endless WS
 /// listening loop will be started.
+#[cfg(not(target_os = "wasi"))]
 pub(crate) async fn start_websocket(
     http_state: Arc<HttpState>,
     resource_event_sender: ProfileGenericCallback<WebSocketNetworkEvent>,
@@ -368,4 +370,21 @@ pub(crate) async fn start_websocket(
         trace!("client closed connection for {}, not running loop", url);
     }
     Ok(response)
+}
+
+/// WebSockets need the connection types of `async-tungstenite` over `tokio::net::TcpStream`; on WASI the network is `rb_net`
+/// (see `connector.rs`), and a WebSocket over it is not done yet: the connection fails, which a page sees as a failed `WebSocket`.
+#[cfg(target_os = "wasi")]
+pub(crate) async fn start_websocket(
+    _http_state: Arc<HttpState>,
+    _resource_event_sender: ProfileGenericCallback<WebSocketNetworkEvent>,
+    _protocols: &[String],
+    client: &net_traits::request::Request,
+    _tls_config: TlsConfig,
+    _dom_action_receiver: CallbackSetter<WebSocketDomAction>,
+) -> Result<Response, Error> {
+    Err(Error::Url(UrlError::UnableToConnect(format!(
+        "WebSocket to {} is not available on this platform yet",
+        client.url()
+    ))))
 }
