@@ -175,3 +175,14 @@ mod platform {
         )
     }
 }
+
+#[cfg(target_os = "wasi")]
+mod platform {
+    use std::sync::LazyLock;
+    use std::time::Instant;
+
+    pub(super) fn now() -> u64 {
+        static ORIGIN: LazyLock<Instant> = LazyLock::new(Instant::now);
+        ORIGIN.elapsed().as_nanos() as u64
+    }
+}
