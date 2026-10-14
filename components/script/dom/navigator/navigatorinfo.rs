@@ -66,7 +66,9 @@ pub(crate) fn Platform() -> DOMString {
 #[expect(non_snake_case)]
 #[cfg(target_os = "wasi")]
 pub(crate) fn Platform() -> DOMString {
-    DOMString::from_static("Rusty Bucket")
+    // What browsers on Linux report: sites sniff this, and an unknown value breaks some of them.
+    // The user agent carries the Rusty Bucket token instead.
+    DOMString::from_static("Linux x86_64")
 }
 
 #[expect(non_snake_case)]

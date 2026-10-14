@@ -664,6 +664,9 @@ impl UserAgentPlatform {
                     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:153.0) Servo/{SERVO_VERSION} Firefox/153.0"
                 )
             },
+            UserAgentPlatform::Desktop if cfg!(target_os = "wasi") => format!(
+                "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Servo/{SERVO_VERSION} RustyBucket/0.1 Firefox/153.0"
+            ),
             UserAgentPlatform::Desktop => {
                 format!(
                     "Mozilla/5.0 (X11; Linux {ARCH}; rv:153.0) Servo/{SERVO_VERSION} Firefox/153.0"
