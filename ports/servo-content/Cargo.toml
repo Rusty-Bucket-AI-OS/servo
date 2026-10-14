@@ -1,0 +1,22 @@
+[package]
+name = "servo-content"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+publish = false
+rust-version.workspace = true
+repository.workspace = true
+description = "The Rusty Bucket content process: Servo as a WASI program that loads a page and paints it with a software GL into memory."
+
+[[bin]]
+name = "servo-content"
+path = "main.rs"
+
+[dependencies]
+dpi = { workspace = true }
+embedder_traits = { workspace = true }
+image = { workspace = true }
+log = { workspace = true }
+servo = { path = "../../components/servo", default-features = false, features = ["baked-in-resources"] }
+url = { workspace = true }

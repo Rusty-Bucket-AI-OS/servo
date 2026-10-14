@@ -8443,6 +8443,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "servo-content"
+version = "0.7.0"
+dependencies = [
+ "dpi",
+ "image",
+ "log",
+ "servo",
+ "servo-embedder-traits",
+ "url",
+]
+
+[[package]]
 name = "servo-default-resources"
 version = "0.7.0"
 dependencies = [
