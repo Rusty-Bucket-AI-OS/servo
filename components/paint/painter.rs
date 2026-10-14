@@ -228,6 +228,7 @@ impl Painter {
                 .expect("Unable to initialize WebRender worker pool."),
         ));
 
+        let software_gl = webrender_gl.get_string(gleam::gl::RENDERER).starts_with("Software");
         let painter_id = PainterId::next();
         let (mut webrender_renderer, webrender_api_sender) = webrender::create_webrender_instance(
             webrender_gl.clone(),
@@ -248,7 +249,10 @@ impl Painter {
                 enable_aa: pref!(gfx_text_antialiasing_enabled),
                 enable_subpixel_aa: pref!(gfx_subpixel_text_antialiasing_enabled),
                 allow_texture_swizzling: pref!(gfx_texture_swizzling_enabled),
-                enable_dithering: true,
+                // swgl (the software GL) has no dithering shader variants, and draws with depth tests LESS and LEQUAL only
+                // (clearing caches with quads uses ALWAYS): Firefox turns both off for it too.
+                enable_dithering: !software_gl,
+                clear_caches_with_quads: !software_gl,
                 clear_color,
                 upload_method,
                 workers,
