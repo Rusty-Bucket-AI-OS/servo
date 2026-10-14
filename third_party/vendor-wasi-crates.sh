@@ -3,7 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at https://mozilla.org/MPL/2.0/.
 #
-# Makes third_party/glow, third_party/wr_glyph_rasterizer, third_party/hyper-util, third_party/async-tungstenite and third_party/imsz (named in [patch.crates-io] in Cargo.toml)
+# Makes third_party/glow, third_party/wr_glyph_rasterizer, third_party/hyper-util, third_party/async-tungstenite, third_party/imsz and third_party/mozjs_sys (named in [patch.crates-io] in Cargo.toml)
 # from the crates.io sources plus the WASI changes (patches, and a sed for glow). Run it once in a checkout before building
 # for target_os = "wasi"; a folder that exists is left alone (delete it to make it again).
 set -eu
@@ -38,4 +38,8 @@ fi
 if fetch imsz 0.4.1; then
   # `impl Imsz for Stdin` calls the impl for `&Stdin`, which is there only on unix and windows.
   (cd "$HERE/imsz" && patch -p1 -s < "$HERE/imsz-0.4.1-wasi.patch")
+fi
+if fetch mozjs_sys 153.3.0-3; then
+  # SpiderMonkey built from source for a shared-memory (wasi-threads) module; see spikes/servo/p7-1 in the Rusty Bucket repository.
+  (cd "$HERE/mozjs_sys" && patch -p1 -s < "$HERE/mozjs_sys-153.3.0-3-wasip1-threads.patch")
 fi

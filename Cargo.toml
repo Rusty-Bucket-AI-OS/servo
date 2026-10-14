@@ -5,6 +5,7 @@ members = [
     "components/svg",
     "components/xpath",
     "ffi/capi",
+    "ports/servo-content",
     "ports/servoshell",
     "tests/capi",
     "tests/unit/*",
@@ -465,6 +466,8 @@ hyper-util = { path = "third_party/hyper-util" }
 async-tungstenite = { path = "third_party/async-tungstenite" }
 # ... and imsz, whose Stdin impl needs a unix or windows one.
 imsz = { path = "third_party/imsz" }
+# ... and SpiderMonkey for a shared-memory module (build it with MOZJS_FROM_SOURCE=1; see spikes/servo/p7-1).
+mozjs_sys = { path = "third_party/mozjs_sys" }
 # markup5ever = { path = "../html5ever/markup5ever" }
 # tendril = { path = "../html5ever/tendril" }
 # web_atoms = { path = "../html5ever/web_atoms" }

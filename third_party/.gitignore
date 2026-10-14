@@ -3,3 +3,4 @@ wr_glyph_rasterizer/
 hyper-util/
 async-tungstenite/
 imsz/
+mozjs_sys/

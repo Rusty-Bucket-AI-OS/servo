@@ -1,0 +1,57 @@
+--- a/makefile.cargo
++++ b/makefile.cargo
+@@ -98,18 +98,28 @@
+         ifeq (,$(WASI_SDK_PATH))
+             $(error WASI_SDK_PATH environment variable must be set when building for wasm32)
+         endif
++        ifneq (,$(findstring wasip1-threads,$(TARGET)))
++            # Spike P7-1: SpiderMonkey for a shared-memory (wasi-threads) module. The code is
++            # compiled with atomics and bulk memory so wasm-ld accepts it in a shared-memory
++            # module; SpiderMonkey's own `__wasi__` paths still run it without helper threads.
++            WASI_THREADS_FLAGS = --target=wasm32-wasip1-threads -pthread
++            TARGET = wasm32-wasi
++        else
++            WASI_THREADS_FLAGS =
++            WASI_NO_SHARED_MEMORY = --disable-shared-memory
++        endif
+         WASI_SYSROOT = $(WASI_SDK_PATH)/share/wasi-sysroot
+-        CC = $(WASI_SDK_PATH)/bin/clang
+-        CPP = $(WASI_SDK_PATH)/bin/clang -E
+-        CXX = $(WASI_SDK_PATH)/bin/clang++
++        CC = $(WASI_SDK_PATH)/bin/clang $(WASI_THREADS_FLAGS)
++        CPP = $(WASI_SDK_PATH)/bin/clang $(WASI_THREADS_FLAGS) -E
++        CXX = $(WASI_SDK_PATH)/bin/clang++ $(WASI_THREADS_FLAGS)
+         AR = $(WASI_SDK_PATH)/bin/ar
+-        HOST_CC = clang
+-        HOST_CXX = clang++
++        HOST_CC = $(or $(RB_HOST_CC),clang)
++        HOST_CXX = $(or $(RB_HOST_CXX),clang++)
+         CONFIGURE_FLAGS += \
+             --enable-portable-baseline-interp \
+             --disable-clang-plugin \
+             --disable-jit \
+-            --disable-shared-memory \
++            $(WASI_NO_SHARED_MEMORY) \
+             --with-sysroot=$(WASI_SDK_PATH)/share/wasi-sysroot \
+             $(NULL)
+         # LTO makes `cargo test --wasm32-wasi` take a very very long time. Since build scripts
+--- a/build.rs
++++ b/build.rs
+@@ -591,7 +591,7 @@
+             // doesn't match `-wasip1`).
+             // Someone familiar with wasi should look into this.
+             builder
+-                .flag("--target=wasm32-wasip1")
++                .flag(if target_triple.contains("threads") { "--target=wasm32-wasip1-threads" } else { "--target=wasm32-wasip1" })
+                 .flag_if_supported("-fvisibility=default");
+         }
+     }
+--- a/mozjs/config/gcc_hidden.h
++++ b/mozjs/config/gcc_hidden.h
+@@ -3,4 +3,6 @@
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
+ /* Begin all files as hidden visibility */
++#ifndef __wasi__  // wasi-sdk 34's libc++ declares classes with default visibility after this pragma: error
+ #pragma GCC visibility push(hidden)
++#endif
