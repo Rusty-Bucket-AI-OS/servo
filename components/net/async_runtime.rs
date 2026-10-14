@@ -39,7 +39,8 @@ static ASYNC_RUNTIME_HANDLE: OnceLock<Handle> = OnceLock::new();
 
 pub fn init_async_runtime() -> Box<dyn AsyncRuntime> {
     // Initialize a tokio runtime.
-    let runtime = Builder::new_multi_thread()
+    let mut builder = Builder::new_multi_thread();
+    builder
         .thread_name_fn(|| {
             static ATOMIC_ID: AtomicUsize = AtomicUsize::new(0);
             let id = ATOMIC_ID.fetch_add(1, Ordering::Relaxed);
@@ -51,10 +52,12 @@ pub fn init_async_runtime() -> Box<dyn AsyncRuntime> {
                 .unwrap_or(servo_config::pref!(thread_pool_fallback_workers) as usize)
                 .min(servo_config::pref!(thread_pool_async_runtime_workers_max).max(1) as usize),
         )
-        .enable_io()
-        .enable_time()
-        .build()
-        .expect("Unable to build tokio-runtime runtime");
+        .enable_time();
+    // On WASI tokio's I/O driver (mio) cannot be woken from another thread, and the network is `rb_net` streams whose threads wake tasks
+    // from outside the runtime: without the driver the workers park on a condition variable, which any thread can signal.
+    #[cfg(not(target_os = "wasi"))]
+    builder.enable_io();
+    let runtime = builder.build().expect("Unable to build tokio-runtime runtime");
 
     // Make the runtime available to users inside this crate.
     ASYNC_RUNTIME_HANDLE
