@@ -19,11 +19,16 @@ use servo_base::id::{PainterId, PipelineId, WebViewId};
 use smallvec::SmallVec;
 use strum::IntoStaticStr;
 use style_traits::CSSPixel;
+#[cfg(not(target_os = "wasi"))]
 use surfman::{Adapter, Connection};
+#[cfg(target_os = "wasi")]
+use crate::surfman_shim::{Adapter, Connection};
 use webrender_api::{DocumentId, FontInstancePlatformOptions, FontVariation};
 
 pub mod display_list;
 pub mod rendering_context;
+#[cfg(target_os = "wasi")]
+mod surfman_shim;
 pub mod viewport_description;
 
 use std::sync::{Arc, Mutex};
