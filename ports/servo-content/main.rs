@@ -107,7 +107,16 @@ fn preferences() -> Preferences {
     preferences.perf_thread_boost_enabled = false;
     preferences.network_http_proxy_uri = String::new();
     preferences.network_https_proxy_uri = String::new();
+    // There is no operating system certificate store here: trust the web's roots (webpki-roots) and, if given, the PEM file
+    // named by RB_CA_BUNDLE (the system's `/certs` folder, or the CA of a proxy that inspects TLS).
+    preferences.network_use_webpki_roots = true;
     preferences
+}
+
+fn opts() -> servo::Opts {
+    let mut opts = servo::Opts::default();
+    opts.certificate_path = std::env::var("RB_CA_BUNDLE").ok().filter(|p| !p.is_empty());
+    opts
 }
 
 /// Log lines go to standard error (standard output carries `rbcp`); `RB_LOG=trace|debug|info|warn|error` (default warn).
@@ -162,7 +171,7 @@ fn screenshot(url: &str, out: &str, width: u32, height: u32) {
         Rc::new(SoftwareRenderingContext::new(PhysicalSize::new(width, height)).expect("invariant: the software GL starts"));
     rendering_context.make_current().expect("invariant: the software GL is current");
     let waker = Waker::default();
-    let servo = ServoBuilder::default().preferences(preferences()).event_loop_waker(Box::new(waker.clone())).build();
+    let servo = ServoBuilder::default().opts(opts()).preferences(preferences()).event_loop_waker(Box::new(waker.clone())).build();
     let delegate = Rc::new(Delegate::default());
     let webview = WebViewBuilder::new(&servo, rendering_context.clone()).url(url.clone()).delegate(delegate.clone()).build();
     eprintln!("servo-content: started in {} ms, loading {url}", started.elapsed().as_millis());
@@ -250,7 +259,7 @@ fn stdio(start: Option<&str>) {
     let rendering_context = Rc::new(SoftwareRenderingContext::new(PhysicalSize::new(1280, 720)).expect("invariant: the software GL starts"));
     rendering_context.make_current().expect("invariant: the software GL is current");
     let waker = Waker::default();
-    let servo = ServoBuilder::default().preferences(preferences()).event_loop_waker(Box::new(waker.clone())).build();
+    let servo = ServoBuilder::default().opts(opts()).preferences(preferences()).event_loop_waker(Box::new(waker.clone())).build();
     let delegate = Rc::new(Delegate::default());
     let url = start.map(parse_url).unwrap_or_else(|| parse_url("about:blank"));
     let webview = WebViewBuilder::new(&servo, rendering_context.clone()).url(url).delegate(delegate.clone()).build();
