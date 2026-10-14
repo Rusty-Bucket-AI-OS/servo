@@ -51,3 +51,6 @@ surfman = { workspace = true, features = ["sm-x11"] }
 
 [lints]
 workspace = true
+
+[target.'cfg(target_os = "wasi")'.dependencies]
+swgl = "=0.70.0"

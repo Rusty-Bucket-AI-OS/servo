@@ -10,6 +10,7 @@ use std::{env, process};
     all(
         not(target_os = "windows"),
         not(target_os = "ios"),
+        not(target_os = "wasi"),
         not(target_os = "android"),
         not(target_env = "ohos"),
         not(target_arch = "arm"),
@@ -96,6 +97,7 @@ pub fn content_process_sandbox_profile() -> Profile {
     not(target_os = "macos"),
     not(target_os = "windows"),
     not(target_os = "ios"),
+    not(target_os = "wasi"),
     not(target_os = "android"),
     not(target_env = "ohos"),
     not(target_arch = "arm"),
@@ -180,6 +182,7 @@ pub fn spawn_multiprocess(
 #[cfg(all(
     not(target_os = "windows"),
     not(target_os = "ios"),
+    not(target_os = "wasi"),
     not(target_os = "android"),
     not(target_env = "ohos"),
     not(target_arch = "arm"),
@@ -249,9 +252,11 @@ pub fn spawn_multiprocess(
     Ok(process)
 }
 
-#[cfg(target_os = "ios")]
-pub fn spawn_multiprocess(_content: UnprivilegedContent) -> Result<Process, Error> {
-    log::error!("Multiprocess is not supported on iOS.");
+#[cfg(any(target_os = "ios", target_os = "wasi"))]
+pub fn spawn_multiprocess(
+    _content: UnprivilegedContent,
+) -> Result<crate::process_manager::Process, ipc_channel::IpcError> {
+    log::error!("Multiprocess is not supported on this platform.");
     process::exit(1);
 }
 

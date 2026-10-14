@@ -5,6 +5,7 @@
 #![deny(unsafe_code)]
 
 use std::rc::Rc;
+#[cfg(not(target_os = "wasi"))]
 use std::sync::Arc;
 
 use dpi::PhysicalSize;
@@ -59,7 +60,8 @@ pub trait RenderingContext {
     fn make_current(&self) -> Result<(), Error>;
     /// Returns the `gleam` version of the OpenGL or GLES API.
     fn gleam_gl_api(&self) -> Rc<dyn gleam::gl::Gl>;
-    /// Returns the OpenGL or GLES API.
+    /// Returns the OpenGL or GLES API (for WebGL, which WASI does not have).
+    #[cfg(not(target_os = "wasi"))]
     fn glow_gl_api(&self) -> Arc<glow::Context>;
     /// Creates a texture from a given surface and returns the surface texture,
     /// the OpenGL texture object, and the size of the surface. Default to `None`.
@@ -89,3 +91,6 @@ pub trait RenderingContext {
 mod surfman_contexts;
 #[cfg(not(target_os = "wasi"))]
 pub use surfman_contexts::{OffscreenRenderingContext, SoftwareRenderingContext, WindowRenderingContext};
+// On WASI the one rendering context is WebRender's software OpenGL drawing into memory.
+#[cfg(target_os = "wasi")]
+pub use crate::swgl_context::SoftwareRenderingContext;

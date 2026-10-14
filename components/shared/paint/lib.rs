@@ -28,6 +28,8 @@ use webrender_api::{DocumentId, FontInstancePlatformOptions, FontVariation};
 pub mod display_list;
 pub mod rendering_context;
 #[cfg(target_os = "wasi")]
+mod swgl_context;
+#[cfg(target_os = "wasi")]
 mod surfman_shim;
 pub mod viewport_description;
 
