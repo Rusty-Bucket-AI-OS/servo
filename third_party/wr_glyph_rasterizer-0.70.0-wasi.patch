@@ -1,0 +1,79 @@
+diff -ruN orig/wr_glyph_rasterizer/src/lib.rs servo/third_party/wr_glyph_rasterizer/src/lib.rs
+--- a/src/lib.rs	2026-10-14 09:37:13.866171312 +0000
++++ b/src/lib.rs	2026-10-14 09:20:34.607895356 +0000
+@@ -43,6 +43,8 @@
+     pub use crate::platform::macos::font;
+     #[cfg(any(target_os = "android", all(unix, not(any(target_os = "ios", target_os = "macos")))))]
+     pub use crate::platform::unix::font;
++    #[cfg(target_os = "wasi")]
++    pub use crate::platform::wasi::font;
+     #[cfg(target_os = "windows")]
+     pub use crate::platform::windows::font;
+ 
+@@ -54,6 +56,11 @@
+     pub mod unix {
+         pub mod font;
+     }
++    #[cfg(target_os = "wasi")]
++    pub mod wasi {
++        pub mod font;
++    }
++
+     #[cfg(target_os = "windows")]
+     pub mod windows {
+         pub mod font;
+diff -ruN orig/wr_glyph_rasterizer/src/platform/wasi/font.rs servo/third_party/wr_glyph_rasterizer/src/platform/wasi/font.rs
+--- a/src/platform/wasi/font.rs	1970-01-01 00:00:00.000000000 +0000
++++ b/src/platform/wasi/font.rs	2026-10-14 09:20:34.585120341 +0000
+@@ -0,0 +1,51 @@
++// This Source Code Form is subject to the terms of the Mozilla Public
++// License, v. 2.0. If a copy of the MPL was not distributed with this
++// file, You can obtain one at http://mozilla.org/MPL/2.0/.
++
++//! The glyph rasterizer's platform interface for WASI. This is a stub: it keeps WebRender compiling
++//! (with its `swgl` software OpenGL) and rasterizes nothing. The real one reads outlines with `skrifa`
++//! and draws them with a CPU rasterizer. The interface is the twelve functions below.
++
++use std::sync::Arc;
++
++use api::{FontKey, GlyphDimensions, NativeFontHandle};
++
++use crate::rasterizer::{FontInstance, GlyphKey, GlyphRasterError, GlyphRasterResult};
++
++pub struct FontContext;
++
++impl FontContext {
++    pub fn distribute_across_threads() -> bool {
++        false
++    }
++
++    pub fn new() -> FontContext {
++        FontContext
++    }
++
++    pub fn add_raw_font(&mut self, _font_key: &FontKey, _bytes: Arc<Vec<u8>>, _index: u32) {}
++
++    pub fn add_native_font(&mut self, _font_key: &FontKey, _native_font_handle: NativeFontHandle) {}
++
++    pub fn delete_font(&mut self, _font_key: &FontKey) {}
++
++    pub fn delete_font_instance(&mut self, _instance: &FontInstance) {}
++
++    pub fn get_glyph_index(&mut self, _font_key: FontKey, _ch: char) -> Option<u32> {
++        None
++    }
++
++    pub fn get_glyph_dimensions(&mut self, _font: &FontInstance, _key: &GlyphKey) -> Option<GlyphDimensions> {
++        None
++    }
++
++    pub fn prepare_font(_font: &mut FontInstance) {}
++
++    pub fn begin_rasterize(_font: &FontInstance) {}
++
++    pub fn end_rasterize(_font: &FontInstance) {}
++
++    pub fn rasterize_glyph(&mut self, _font: &FontInstance, _key: &GlyphKey) -> GlyphRasterResult {
++        Err(GlyphRasterError::LoadFailed)
++    }
++}

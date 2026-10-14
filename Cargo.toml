@@ -455,6 +455,10 @@ codegen-units = 1
 # For html5ever:
 #
 # html5ever = { path = "../html5ever/html5ever" }
+# Spike P7-2: WebRender's glyph rasterizer with a platform module for WASI (a stub for now).
+wr_glyph_rasterizer = { path = "third_party/wr_glyph_rasterizer" }
+# Spike P7-2: glow's OpenGL (not WebGL) backend on WASI, where the loader is the software GL's `get_proc_address`.
+glow = { path = "third_party/glow" }
 # markup5ever = { path = "../html5ever/markup5ever" }
 # tendril = { path = "../html5ever/tendril" }
 # web_atoms = { path = "../html5ever/web_atoms" }
