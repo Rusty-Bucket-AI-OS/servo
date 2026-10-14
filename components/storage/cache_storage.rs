@@ -228,7 +228,7 @@ impl CacheStorageThreadFactory for CacheStorageThreadHandle {
             .name("CacheStorageThread".to_owned())
             .spawn(move || {
                 // Keep temp_dir alive while the thread runs.
-                let _ = temp_dir;
+                let _keep_alive = temp_dir; // `let _ = ..` captures nothing: the folder would be deleted before the thread opens its database
                 let engine = MemCacheStorageEngine {
                     name_to_cache_map: Default::default(),
                 };

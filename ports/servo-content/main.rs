@@ -115,11 +115,26 @@ fn preferences() -> Preferences {
     preferences
 }
 
+/// The profile folder named by `RB_PROFILE`, if it can be written. Servo's storage code panics on a folder it cannot use and that would end the tab, so a
+/// missing or read-only one is reported and the data lasts as long as the process.
+fn profile_dir() -> Option<std::path::PathBuf> {
+    let dir = std::path::PathBuf::from(std::env::var_os("RB_PROFILE").filter(|p| !p.is_empty())?);
+    let probe = dir.join(".rb-probe");
+    let usable = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&probe, b"")).and_then(|()| std::fs::remove_file(&probe));
+    match usable {
+        Ok(()) => Some(dir),
+        Err(error) => {
+            eprintln!("servo-content: the profile folder {} cannot be written ({error}); site data will not be kept", dir.display());
+            None
+        },
+    }
+}
+
 fn opts() -> servo::Opts {
     let mut opts = servo::Opts::default();
     opts.certificate_path = std::env::var("RB_CA_BUNDLE").ok().filter(|p| !p.is_empty());
     // Where `localStorage`, IndexedDB and the other site data live (the system's profile folder); without it they last as long as the process.
-    opts.config_dir = std::env::var_os("RB_PROFILE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from);
+    opts.config_dir = profile_dir();
     opts
 }
 

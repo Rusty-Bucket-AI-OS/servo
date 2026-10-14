@@ -697,7 +697,7 @@ impl ClientStorageThreadFactory for ClientStorageThreadHandle {
             .name("ClientStorageThread".to_owned())
             .spawn(move || {
                 // Keep temp_dir alive while the thread runs.
-                let _ = temp_dir;
+                let _keep_alive = temp_dir; // `let _ = ..` captures nothing: the folder would be deleted before the thread opens its database
                 let engine = SqliteEngine::new(storage_dir).unwrap_or_else(|error| {
                     warn!("Failed to initialize ClientStorage engine into storage dir: {error:?}");
                     SqliteEngine::memory().unwrap()
