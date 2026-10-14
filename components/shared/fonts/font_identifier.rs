@@ -264,3 +264,35 @@ mod platform {
         }
     }
 }
+
+#[cfg(target_os = "wasi")]
+mod platform {
+    use malloc_size_of_derive::MallocSizeOf;
+    use serde::{Deserialize, Serialize};
+    use style::Atom;
+
+    use crate::FontDataAndIndex;
+
+    #[derive(Clone, Debug, Deserialize, Eq, Hash, MallocSizeOf, PartialEq, Serialize)]
+    pub struct LocalFontIdentifier {
+        pub path: Atom,
+        pub face_index: u16,
+    }
+
+    impl LocalFontIdentifier {
+        pub fn index(&self) -> u32 {
+            self.face_index as u32
+        }
+
+        pub fn font_data_and_index(&self) -> Option<FontDataAndIndex> {
+            None
+        }
+
+        pub fn native_font_handle(&self) -> webrender_api::NativeFontHandle {
+            webrender_api::NativeFontHandle {
+                path: std::path::PathBuf::from(&*self.path),
+                index: self.face_index as u32,
+            }
+        }
+    }
+}

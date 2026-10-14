@@ -23,11 +23,15 @@ use unicode_script::Script;
 use crate::FallbackFontSelectionOptions;
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 pub use crate::platform::freetype::{font, font_list};
+#[cfg(target_os = "wasi")]
+pub use crate::platform::wasi::{font, font_list};
 #[cfg(target_os = "macos")]
 pub use crate::platform::macos::{core_text_font_cache, font, font_list};
 #[cfg(target_os = "windows")]
 pub use crate::platform::windows::{font, font_list};
 
+#[cfg(target_os = "wasi")]
+pub mod wasi;
 #[cfg(any(target_os = "linux", target_os = "android", target_os = "freebsd"))]
 pub mod freetype;
 
