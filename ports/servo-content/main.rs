@@ -240,6 +240,14 @@ fn changed_rect(before: &[u8], now: &[u8], width: usize, height: usize) -> Optio
         let row = height - 1 - y;
         pixels.extend_from_slice(&now[row * stride + left * 4..row * stride + (right + 1) * 4]);
     }
+    // The page's background may be transparent: show it over white, as a browser does (premultiplied BGRA).
+    for px in pixels.chunks_exact_mut(4) {
+        let hole = 255 - px[3];
+        for c in &mut px[..3] {
+            *c = c.saturating_add(hole);
+        }
+        px[3] = 255;
+    }
     Some((left, top, w, h, pixels))
 }
 
@@ -319,7 +327,7 @@ fn stdio(start: Option<&str>) {
                 Command::Nav(_) => {},
                 Command::Resize(w, h) if w > 0 && h > 0 => {
                     let size = PhysicalSize::new(u32::from(w), u32::from(h));
-                    rendering_context.resize(size);
+                    // Only the web view's resize reaches the viewport: it skips a context that is already that size.
                     webview.resize(size);
                     (width, height) = (usize::from(w), usize::from(h));
                     sent.clear(); // the next picture goes out whole
@@ -363,7 +371,11 @@ fn stdio(start: Option<&str>) {
                 if now.len() != w * h * 4 {
                     return;
                 }
-                let rect = if sent.len() == now.len() { changed_rect(&sent, now, w, h) } else { changed_rect(&vec![0u8; now.len()], now, w, h).or(Some((0, 0, w, h, vec![0u8; w * h * 4]))) };
+                let rect = if sent.len() == now.len() { changed_rect(&sent, now, w, h) } else { {
+                    // Nothing sent yet: the whole picture, even where it is transparent black (which equals an empty buffer).
+                    let inverted: Vec<u8> = now.iter().map(|b| !b).collect();
+                    changed_rect(&inverted, now, w, h)
+                } };
                 if let Some((x, y, rw, rh, pixels)) = rect {
                     let _ = protocol::rect(&mut out, x as u16, y as u16, rw as u16, rh as u16, &pixels);
                 }
