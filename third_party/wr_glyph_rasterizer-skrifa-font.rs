@@ -74,8 +74,12 @@ impl FontContext {
         }
     }
 
-    pub fn add_native_font(&mut self, _font_key: &FontKey, _native_font_handle: NativeFontHandle) {
-        // There are no system fonts on this platform: every font arrives as bytes.
+    /// A font Servo found on disk arrives as a path and a face index (there is no system font database here, but there are
+    /// files): read it and treat it as bytes.
+    pub fn add_native_font(&mut self, font_key: &FontKey, native_font_handle: NativeFontHandle) {
+        if let Ok(bytes) = std::fs::read(&native_font_handle.path) {
+            self.add_raw_font(font_key, Arc::new(bytes), native_font_handle.index);
+        }
     }
 
     pub fn delete_font(&mut self, font_key: &FontKey) {
