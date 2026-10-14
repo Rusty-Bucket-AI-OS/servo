@@ -23,3 +23,10 @@ pub enum Error {
     Failed,
     UnsupportedOnThisPlatform,
 }
+
+impl Connection {
+    /// There is no GL device behind the stand-in, so no adapter either: WebGL is unavailable, as the caller expects.
+    pub fn create_adapter(&self) -> Result<Adapter, Error> {
+        Err(Error::UnsupportedOnThisPlatform)
+    }
+}
