@@ -50,10 +50,12 @@ pub fn new_storage_threads(
     config_dir: Option<PathBuf>,
     temporary_storage: bool,
 ) -> (StorageThreads, StorageThreads) {
+    // Private browsing never persists: its group always lives in a folder of its own that goes away. Sharing the public group's database
+    // made two SQLite connections open one file, which only a platform with file locks survives.
     let private_storage_threads = new_storage_thread_group(
         mem_profiler_chan.clone(),
         config_dir.clone(),
-        temporary_storage,
+        true,
         "private",
     );
     let public_storage_threads =

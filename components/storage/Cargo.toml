@@ -34,6 +34,11 @@ storage_traits = { workspace = true }
 tempfile = { workspace = true }
 uuid = { workspace = true }
 
+# On WASI the bundled SQLite has no `unix` VFS that works (no file locks, no `fchmod`); this one needs only `open`, `read`, `write`, `fsync`, `fstat`,
+# `access` and `unlink`, and the build sets `LIBSQLITE3_FLAGS=-DSQLITE_OS_OTHER=1` (see ports/servo-content) so it is the default.
+[target.'cfg(target_os = "wasi")'.dependencies]
+libsqlite3-sys = { version = "0.36", features = ["wasm32-wasi-vfs"] }
+
 [dev-dependencies]
 profile = { workspace = true }
 servo-default-resources = { workspace = true }

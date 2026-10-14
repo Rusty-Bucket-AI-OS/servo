@@ -4,7 +4,8 @@
 
 //! The Rusty Bucket content process: Servo as a WASI program that paints with the software GL into memory.
 //!
-//! - `servo-content URL OUT.png [WIDTH HEIGHT]`: loads the page, waits for the load and a frame, writes the picture to `OUT.png`
+//! - `servo-content URL OUT.png [WIDTH HEIGHT]`: loads the page, waits for the load and until no frame has come for `RB_SETTLE_MS` (500; vector
+//!   images and late images paint after the load), writes the picture to `OUT.png`
 //!   and prints how long that took.
 //! - `servo-content --stdio [URL]`: a browser tab. It speaks `rbcp` (see `protocol.rs`) on its standard input and output: rectangles of
 //!   the picture, the title, the address and the loading state go out; navigation, resizes, keys, the pointer and the wheel come in.
@@ -110,12 +111,15 @@ fn preferences() -> Preferences {
     // There is no operating system certificate store here: trust the web's roots (webpki-roots) and, if given, the PEM file
     // named by RB_CA_BUNDLE (the system's `/certs` folder, or the CA of a proxy that inspects TLS).
     preferences.network_use_webpki_roots = true;
+    preferences.dom_indexeddb_enabled = true;
     preferences
 }
 
 fn opts() -> servo::Opts {
     let mut opts = servo::Opts::default();
     opts.certificate_path = std::env::var("RB_CA_BUNDLE").ok().filter(|p| !p.is_empty());
+    // Where `localStorage`, IndexedDB and the other site data live (the system's profile folder); without it they last as long as the process.
+    opts.config_dir = std::env::var_os("RB_PROFILE").filter(|p| !p.is_empty()).map(std::path::PathBuf::from);
     opts
 }
 
@@ -176,13 +180,21 @@ fn screenshot(url: &str, out: &str, width: u32, height: u32) {
     let webview = WebViewBuilder::new(&servo, rendering_context.clone()).url(url.clone()).delegate(delegate.clone()).build();
     eprintln!("servo-content: started in {} ms, loading {url}", started.elapsed().as_millis());
     let mut load_ms = None;
+    let settle = Duration::from_millis(std::env::var("RB_SETTLE_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(500));
+    let (mut seen_frames, mut last_frame) = (0, Instant::now());
     loop {
         servo.spin_event_loop();
         if load_ms.is_none() && delegate.loaded.get() {
             load_ms = Some(started.elapsed().as_millis());
             eprintln!("servo-content: load complete after {} ms", load_ms.unwrap_or_default());
         }
-        if delegate.frame_after_load.get() {
+        // A page is "loaded" before its vector images (SVG) are rasterized and before late images arrive, and each of those paints
+        // again: wait until no frame has come for the settle time, so the picture holds them.
+        if delegate.frames.get() != seen_frames {
+            seen_frames = delegate.frames.get();
+            last_frame = Instant::now();
+        }
+        if delegate.frame_after_load.get() && last_frame.elapsed() >= settle {
             break;
         }
         waker.wait(Duration::from_millis(20));

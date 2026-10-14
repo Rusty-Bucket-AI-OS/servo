@@ -478,7 +478,10 @@ impl RegistryEngine for SqliteEngine {
 
         tx.commit().map_err(ClientStorageErrorr::Internal)?;
 
-        std::fs::create_dir_all(&path).map_err(|_| ClientStorageErrorr::DirectoryCreationFailed)?;
+        std::fs::create_dir_all(&path).map_err(|error| {
+            warn!("Cannot create the IndexedDB folder {}: {error:?}", path.display());
+            ClientStorageErrorr::DirectoryCreationFailed
+        })?;
 
         Ok((path, true))
     }

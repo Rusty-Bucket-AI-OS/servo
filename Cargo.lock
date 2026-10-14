@@ -9597,6 +9597,7 @@ name = "servo-storage"
 version = "0.7.0"
 dependencies = [
  "libc",
+ "libsqlite3-sys",
  "log",
  "malloc_size_of_derive",
  "postcard",
