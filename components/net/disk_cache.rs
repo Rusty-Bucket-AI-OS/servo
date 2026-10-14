@@ -89,7 +89,7 @@ fn storage_dir() -> Option<PathBuf> {
     ) {
         (false, false) => Some(disk_storage_path.into()),
         (true, true) => {
-            let tmp_dir = tempfile::tempdir().unwrap();
+            let tmp_dir = tempfile::tempdir_in(std::env::var_os("TMPDIR").unwrap_or_else(|| "/tmp".into())).unwrap();
             let mut path = tmp_dir.path().to_path_buf();
             path.set_file_name("cache.sqlite3");
             Some(path)

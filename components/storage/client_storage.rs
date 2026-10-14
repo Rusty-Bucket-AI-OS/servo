@@ -675,7 +675,7 @@ impl ClientStorageThreadFactory for ClientStorageThreadHandle {
         let mut temp_dir: Option<tempfile::TempDir> = None;
         let base_dir = config_dir
             .unwrap_or_else(|| {
-                let tmp_dir = tempfile::tempdir().unwrap();
+                let tmp_dir = tempfile::tempdir_in(std::env::var_os("TMPDIR").unwrap_or_else(|| "/tmp".into())).unwrap();
                 let path = tmp_dir.path().to_path_buf();
                 temp_dir = Some(tmp_dir);
                 path
