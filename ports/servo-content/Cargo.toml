@@ -18,5 +18,10 @@ dpi = { workspace = true }
 embedder_traits = { workspace = true }
 image = { workspace = true }
 log = { workspace = true }
-servo = { path = "../../components/servo", default-features = false, features = ["baked-in-resources"] }
+servo = { path = "../../components/servo", default-features = false }
 url = { workspace = true }
+
+# parking_lot's WebAssembly parker needs the atomics (memory.atomic.wait) and a nightly feature gate (the build sets RUSTC_BOOTSTRAP=1); without it
+# every lock that has to wait panics with "Parking not supported on this platform".
+[target.'cfg(target_os = "wasi")'.dependencies]
+parking_lot_core = { version = "0.9", features = ["nightly"] }
