@@ -7,14 +7,16 @@
 
 use std::io::{self, Read, Write};
 
-pub const VERSION: u16 = 1;
+pub const VERSION: u16 = 2;
 
 pub enum Command {
     Navigate(String),
     /// 0 back, 1 forward, 2 reload, 3 stop.
     Nav(u8),
     Resize(u16, u16),
-    Key { down: bool, mods: u8, key: String, text: String },
+    /// `down` is the wire's state byte: 0 up, 1 down, 2 down again (`repeat`, an auto-repeat). `code` is the physical key's
+    /// UI Events name (`KeyboardEvent.code`): `KeyQ` for the key that types `a` on a French keyboard.
+    Key { down: bool, repeat: bool, mods: u8, key: String, text: String, code: String },
     /// kind 0 move, 1 down, 2 up; button 0 primary, 1 middle, 2 secondary.
     Pointer { kind: u8, x: i16, y: i16, button: u8 },
     Wheel { x: i16, y: i16, dx: i16, dy: i16 },
@@ -46,11 +48,15 @@ pub fn read_command(r: &mut impl Read) -> io::Result<Option<Command>> {
         2 => Command::Nav(*b.first().ok_or_else(bad)?),
         3 => Command::Resize(i16at(0)? as u16, i16at(2)? as u16),
         4 => {
-            let (down, mods, klen) = (*b.first().ok_or_else(bad)? != 0, *b.get(1).ok_or_else(bad)?, usize::from(*b.get(2).ok_or_else(bad)?));
+            let state = *b.first().ok_or_else(bad)?;
+            let (down, repeat) = (state != 0, state == 2);
+            let (mods, klen) = (*b.get(1).ok_or_else(bad)?, usize::from(*b.get(2).ok_or_else(bad)?));
             let key = text(b.get(3..3 + klen).ok_or_else(bad)?);
             let tlen = usize::from(*b.get(3 + klen).ok_or_else(bad)?);
-            let text = text(b.get(4 + klen..4 + klen + tlen).ok_or_else(bad)?);
-            Command::Key { down, mods, key, text }
+            let typed = text(b.get(4 + klen..4 + klen + tlen).ok_or_else(bad)?);
+            let clen = usize::from(*b.get(4 + klen + tlen).ok_or_else(bad)?);
+            let code = text(b.get(5 + klen + tlen..5 + klen + tlen + clen).ok_or_else(bad)?);
+            Command::Key { down, repeat, mods, key, text: typed, code }
         },
         5 => Command::Pointer { kind: *b.first().ok_or_else(bad)?, x: i16at(1)?, y: i16at(3)?, button: *b.get(5).ok_or_else(bad)? },
         6 => Command::Wheel { x: i16at(0)?, y: i16at(2)?, dx: i16at(4)?, dy: i16at(6)? },

@@ -278,7 +278,10 @@ fn changed_rect(before: &[u8], now: &[u8], width: usize, height: usize) -> Optio
     Some((left, top, w, h, pixels))
 }
 
-fn key_event(down: bool, mods: u8, key: &str, text: &str) -> InputEvent {
+/// A key from the host: `down` (false for a release), `repeat` (held down long enough to repeat), the modifier bits, the key's
+/// name as a browser spells it, the text it types and the physical key's UI Events name (`code`: `KeyQ` for the key that
+/// types `a` on a French keyboard).
+fn key_event(down: bool, repeat: bool, mods: u8, key: &str, text: &str, code: &str) -> InputEvent {
     let mut modifiers = Modifiers::empty();
     for (bit, m) in [(1, Modifiers::SHIFT), (2, Modifiers::CONTROL), (4, Modifiers::ALT), (8, Modifiers::META)] {
         if mods & bit != 0 {
@@ -287,7 +290,17 @@ fn key_event(down: bool, mods: u8, key: &str, text: &str) -> InputEvent {
     }
     let key = if !text.is_empty() && key.chars().count() == 1 { Key::Character(text.to_owned()) } else { key.parse::<Key>().unwrap_or_else(|_| Key::Character(key.to_owned())) };
     let state = if down { KeyState::Down } else { KeyState::Up };
-    InputEvent::Keyboard(KeyboardEvent::new_without_event(state, key, Code::Unidentified, Location::Standard, modifiers, false, false))
+    // The physical key, as the shell named it: the page's `KeyboardEvent.code`, and `location` by the UI Events rule
+    // (the same as Rusty Bucket's rb_input::code::location): the pad's keys, the left and right modifiers.
+    let location = match code {
+        "NumLock" => Location::Standard,
+        c if c.starts_with("Numpad") => Location::Numpad,
+        "ShiftLeft" | "ControlLeft" | "AltLeft" | "MetaLeft" => Location::Left,
+        "ShiftRight" | "ControlRight" | "AltRight" | "MetaRight" => Location::Right,
+        _ => Location::Standard,
+    };
+    let code = code.parse::<Code>().unwrap_or(Code::Unidentified);
+    InputEvent::Keyboard(KeyboardEvent::new_without_event(state, key, code, location, modifiers, repeat && down, false))
 }
 
 fn stdio(start: Option<&str>) {
@@ -360,8 +373,8 @@ fn stdio(start: Option<&str>) {
                     sent.clear(); // the next picture goes out whole
                 },
                 Command::Resize(..) => {},
-                Command::Key { down, mods, key, text } => {
-                    webview.notify_input_event(key_event(down, mods, &key, &text));
+                Command::Key { down, repeat, mods, key, text, code } => {
+                    webview.notify_input_event(key_event(down, repeat, mods, &key, &text, &code));
                 },
                 Command::Pointer { kind, x, y, button } => {
                     let point = WebViewPoint::Device(DevicePoint::new(f32::from(x), f32::from(y)));
